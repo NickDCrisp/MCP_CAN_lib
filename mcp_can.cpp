@@ -146,7 +146,8 @@ INT8U MCP_CAN::mcp2515_readStatus(void)
 
 /*********************************************************************************************************
 ** Function name:           setSleepWakeup
-** Descriptions:            Enable or disable the wake up interrupt (If disabled the MCP2515 will not be woken up by CAN bus activity)
+** Descriptions:            Public function, Enable or disable the wake up interrupt
+** 								(If disabled the MCP2515 will not be woken up by CAN bus activity)
 *********************************************************************************************************/
 void MCP_CAN::setSleepWakeup(const INT8U enable)
 {
@@ -155,11 +156,11 @@ void MCP_CAN::setSleepWakeup(const INT8U enable)
 
 /*********************************************************************************************************
 ** Function name:           setMode
-** Descriptions:            Sets control mode
+** Descriptions:            public method, sets control mode
 *********************************************************************************************************/
 INT8U MCP_CAN::setMode(const INT8U opMode)
 {
-    mcpMode = opMode;
+    mcpMode = opMode; // stored so we can return to it if we need to temporarily change
     return mcp2515_setCANCTRL_Mode(mcpMode);
 }
 
@@ -888,10 +889,10 @@ INT8U MCP_CAN::init_Mask(INT8U num, INT32U ulData)
     res = mcp2515_setCANCTRL_Mode(MODE_CONFIG);
     if(res > 0){
 #if DEBUG_MODE
-    Serial.println(F("Entering Configuration Mode Failure...")); 
+		Serial.println(F("Entering Configuration Mode Failure...")); 
 #endif
-  return res;
-}
+		return res;
+	}
     
     if((ulData & 0x80000000) == 0x80000000)
         ext = 1;
@@ -903,16 +904,16 @@ INT8U MCP_CAN::init_Mask(INT8U num, INT32U ulData)
     else if(num == 1){
         mcp2515_write_mf(MCP_RXM1SIDH, ext, ulData);
     }
-    else res =  MCP2515_FAIL;
+    else res =  MCP2515_FAIL; // this is pointless as it will get over-written
     
     res = mcp2515_setCANCTRL_Mode(mcpMode);
     if(res > 0){
 #if DEBUG_MODE
-    Serial.println(F("Entering Previous Mode Failure...")); 
-	Serial.println(F("Setting Mask Failure..."));
+		Serial.println(F("Entering Previous Mode Failure...")); 
+		Serial.println(F("Setting Mask Failure..."));
 #endif
-    return res;
-  }
+		return res;
+	}
 #if DEBUG_MODE
     Serial.println(F("Setting Mask Successful!"));
 #endif
@@ -1258,7 +1259,7 @@ INT8U MCP_CAN::checkError(void)
 
 /*********************************************************************************************************
 ** Function name:           getError
-** Descriptions:            Returns error register value.
+** Descriptions:            Public function, Returns error register value.
 *********************************************************************************************************/
 INT8U MCP_CAN::getError(void)
 {
@@ -1267,7 +1268,7 @@ INT8U MCP_CAN::getError(void)
 
 /*********************************************************************************************************
 ** Function name:           mcp2515_errorCountRX
-** Descriptions:            Returns REC register value
+** Descriptions:            Public function, Returns REC register value
 *********************************************************************************************************/
 INT8U MCP_CAN::errorCountRX(void)                             
 {
@@ -1276,7 +1277,7 @@ INT8U MCP_CAN::errorCountRX(void)
 
 /*********************************************************************************************************
 ** Function name:           mcp2515_errorCountTX
-** Descriptions:            Returns TEC register value
+** Descriptions:            Public function, Returns TEC register value
 *********************************************************************************************************/
 INT8U MCP_CAN::errorCountTX(void)                             
 {
@@ -1285,7 +1286,7 @@ INT8U MCP_CAN::errorCountTX(void)
 
 /*********************************************************************************************************
 ** Function name:           mcp2515_enOneShotTX
-** Descriptions:            Enables one shot transmission mode
+** Descriptions:            Public function, Enables one shot transmission mode
 *********************************************************************************************************/
 INT8U MCP_CAN::enOneShotTX(void)                             
 {
@@ -1298,7 +1299,7 @@ INT8U MCP_CAN::enOneShotTX(void)
 
 /*********************************************************************************************************
 ** Function name:           mcp2515_disOneShotTX
-** Descriptions:            Disables one shot transmission mode
+** Descriptions:            Public function, Disables one shot transmission mode
 *********************************************************************************************************/
 INT8U MCP_CAN::disOneShotTX(void)                             
 {
@@ -1311,7 +1312,7 @@ INT8U MCP_CAN::disOneShotTX(void)
 
 /*********************************************************************************************************
 ** Function name:           mcp2515_abortTX
-** Descriptions:            Aborts any queued transmissions
+** Descriptions:            Public function, Aborts any queued transmissions
 *********************************************************************************************************/
 INT8U MCP_CAN::abortTX(void)                             
 {

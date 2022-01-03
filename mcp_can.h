@@ -24,7 +24,11 @@
 #ifndef _MCP2515_H_
 #define _MCP2515_H_
 
+// _dfs file contains the #defines for registers and return values.
+// by default serial debug mode is active for MCP_CAN so uncomment this next line if you don't need it.
+// #define DEBUG_MODE 0
 #include "mcp_can_dfs.h"
+// typical CAN frame will contain up to 8 data bytes
 #define MAX_CHAR_IN_MESSAGE 8
 
 class MCP_CAN
@@ -106,24 +110,66 @@ class MCP_CAN
     INT8U sendMsg();                                                    // Send message
 
 public:
-    MCP_CAN(INT8U _CS);
-    INT8U begin(INT8U idmodeset, INT8U speedset, INT8U clockset);       // Initialize controller parameters
-    INT8U init_Mask(INT8U num, INT8U ext, INT32U ulData);               // Initialize Mask(s)
-    INT8U init_Mask(INT8U num, INT32U ulData);                          // Initialize Mask(s)
-    INT8U init_Filt(INT8U num, INT8U ext, INT32U ulData);               // Initialize Filter(s)
+    MCP_CAN(INT8U _CS);			    /* Class constructor  - allocates chip select pin but assume HW SPI */	
+    INT8U begin(INT8U idmodeset, INT8U speedset, INT8U clockset);    	/* Initialise controller parameters
+			resets the MCP, clears all masks and filters, enables RX of ext & normal and RX buffer 0 overflow
+			input idmodeset MCP_STDEXT (use filters/masks) or MCP_ANY (disables filters/masks) 
+			input speedset a CAN_xxxKBPS speed constant - configures internal clock divider to suit
+			input clockset a MCP_20MHZ, 16MHZ or 8MHZ to suit system clock
+			then switches to normal mode (Tx & Rx possible)
+			result is either CAN_OK [0] or CAN_FAILINIT */
+    INT8U init_Mask(INT8U num, INT8U ext, INT32U ulData);               /* Initialise Mask(s)
+			sets mask bits of Rx buffer.  Mask defines which filter bits are relevant
+			input num = 0 or 1 for Rx buffers 0 or 1
+			input ext = CAN_STDID or CAN_EXTID depending on 11-bit or 29-bit ID
+			input u1Data = mask : wherever bit is 1 means associated filter bit is relevant.
+			returns CAN_OK [0] or relevant fault code */ 
+    INT8U init_Mask(INT8U num, INT32U ulData);                          // Initialise Mask(s)
+			// as above but the mask format includes coding whether it is extended by OR with CAN_IS_EXTENDED
+    INT8U init_Filt(INT8U num, INT8U ext, INT32U ulData);               /* Initialise Filter(s)
+			As Mask but setting filters.  E.G. Mask 0xF00 and Filter 0x600 will select all 0x6.. messages
+			input num = 0 or 1 for Rx buffer 0; 2..5 for Rx buffer 1
+			returns CAN_OK [0] or relevant fault code */
     INT8U init_Filt(INT8U num, INT32U ulData);                          // Initialize Filter(s)
-    void setSleepWakeup(INT8U enable);                                  // Enable or disable the wake up interrupt (If disabled the MCP2515 will not be woken up by CAN bus activity)
-    INT8U setMode(INT8U opMode);                                        // Set operational mode
-    INT8U sendMsgBuf(INT32U id, INT8U ext, INT8U len, INT8U *buf);      // Send message to transmit buffer
+			// as above but ulData includes coding CAN_IS_EXTENDED for extended filters as a short-hand
+    void setSleepWakeup(INT8U enable);                                  /* Enable or disable
+			the CAN wake interrupt (If enabled the MCP2515 will wake from sleep by CAN bus activity)
+			input enable FALSE/TRUE */
+    INT8U setMode(INT8U opMode);                                        /* Set operational mode
+			Select CAN operating mode from
+			MCP_NORMAL   Rx and Tx on CAN
+			MCP_SLEEP    Self explanatory.  Can wake if Wake on CAN is enabled?
+			MCP_LOOPBACK Internal loop-back for testing
+			MCP_LISTENONLY Self explanatory.  For CAN monitoring applications */
+    INT8U sendMsgBuf(INT32U id, INT8U ext, INT8U len, INT8U *buf);      /* Send message to transmit buffer
+			inputs are
+			id message ID to send,
+			ext select whether this is an extended ID: CAN_STDID or CAN_EXTID,
+			len data length (0...8) or as qualified by MAX_CHAR_IN_MESSAGE
+			buf data array of bytes
+			returns CAN_OK[0] or CAN_GETTXBFTIMEOUT or CAN_SENDMSGTIMEOUT */
     INT8U sendMsgBuf(INT32U id, INT8U len, INT8U *buf);                 // Send message to transmit buffer
-    INT8U readMsgBuf(INT32U *id, INT8U *ext, INT8U *len, INT8U *buf);   // Read message from receive buffer
-    INT8U readMsgBuf(INT32U *id, INT8U *len, INT8U *buf);               // Read message from receive buffer
+			// as above but ID has internal coding for whether it is extended or not
+    INT8U readMsgBuf(INT32U *id, INT8U *ext, INT8U *len, INT8U *buf);   /* Read message from receive buffer
+			Reads message from buffer 0 if available otherwise buffer 1 if avail.
+			CAN ID, extended/Std, Data length and data bytes returned via arguments
+			returns CAN_OK [0] or CAN_NOMSG
+			Note: message ID was previously available via getCanId() method which is now deprecated */
+	INT8U readMsgBuf(INT32U *id, INT8U *len, INT8U *buf);               // Read message from receive buffer
+			// as above but ID has internal coding to indicate whether extended/Std
+			// using bit masks CAN_IS_EXTENDED, and CAN_IS_REMOTE_REQUEST
     INT8U checkReceive(void);                                           // Check for received data
+			/* if something received	returns CAN_NOMSG or CAN_MSGAVAIL */
     INT8U checkError(void);                                             // Check for errors
-    INT8U getError(void);                                               // Check for errors
-    INT8U errorCountRX(void);                                           // Get error count
-    INT8U errorCountTX(void);                                           // Get error count
+			// returns CAN_OK[0] or CAN_CTRLERROR based on EFLG register
+    INT8U getError(void);                                               /* Check for errors
+			returns the actual error register for you to deal with.
+			BitMasks MCP_EFLG_xyz #define to find what type of error
+			bits 0...2 are warnings so bitwise AND with MCP_EFLG_ERRORMASK to extract true errors */
+    INT8U errorCountRX(void);                                           // Get error count RX register
+    INT8U errorCountTX(void);                                           // Get error count TX register
     INT8U enOneShotTX(void);                                            // Enable one-shot transmission
+			// One-shot Tx will not attempt to re-send on send failure, use for deterministic bus timing.
     INT8U disOneShotTX(void);                                           // Disable one-shot transmission
     INT8U abortTX(void);                                                // Abort queued transmission(s)
     INT8U setGPO(INT8U data);                                           // Sets GPO
